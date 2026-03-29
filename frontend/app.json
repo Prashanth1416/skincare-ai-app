@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "Spark",
+    "slug": "spark-skincare",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#B19CD9"
+    },
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "plugins": [
+        [
+          "expo-camera",
+          {
+            "cameraPermission": "Allow Spark to access your camera for skin analysis."
+          }
+        ]
+    ],
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#B19CD9"
+      }
+    },
+    "web": {
+      "favicon": "./assets/icon.png"
+    }
+  }
+}

@@ -1,0 +1,7 @@
+# npm install --- this is for the animated components and navigation in the frontend
+ gsap
+# npx expo install---- this is for the expo-linear-gradient package which is used in the login screen for the background gradient
+expo-linear-gradient 
+
+# to install this run the following command in the frontend directory terminal:
+# pip install -r new-requirements.txt
