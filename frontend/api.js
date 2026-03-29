@@ -4,7 +4,7 @@ import { Platform } from 'react-native';
 
 const WEB_LOCAL = 'http://localhost:5000';
 const ANDROID_EMULATOR = 'http://10.0.2.2:5000';
-const DEVICE_LAN = 'http://192.168.0.109:5000';
+const DEVICE_LAN = 'http://192.168.0.109:5000'; // Replace with your machine's local IP address
 
 const BASE_URL = Platform.select({
   web: WEB_LOCAL,

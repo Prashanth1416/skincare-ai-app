@@ -1,664 +1,1008 @@
-/**
- * SKIN IQ — ProductRecommendationsScreen
- * Dark theme · Coral/orange accent · Real products · Cycle-aware · AI personalized
- */
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Linking, ActivityIndicator,
-  SafeAreaView, StatusBar, Dimensions,
+  View,
+  Text,
+  StyleSheet,
+  ScrollView,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  Linking,
+  Dimensions,
 } from 'react-native';
+import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import api from '../api';
 
 const { width } = Dimensions.get('window');
 
-const T = {
-  bg0:'#0D0D14', bg1:'#13131F', bg2:'#1A1A2E', bg3:'#22223A', bg4:'#2A2A45',
-  border:'#2E2E50',
-  text:'#F0EFF8', text2:'#B8B5D4', text3:'#7A7898', text4:'#4A4870',
-  accent:'#39E07A', accentDim:'rgba(57,224,122,0.12)',
-  amber:'#FBBF24', amberDim:'rgba(251,191,36,0.12)',
-  skyBlue:'#38BDF8', skyBlueDim:'rgba(56,189,248,0.12)',
-  violet:'#A78BFA', violetDim:'rgba(167,139,250,0.12)',
-  rose:'#FB7185', roseDim:'rgba(251,113,133,0.12)',
-  coral:'#FF7043', coralDim:'rgba(255,112,67,0.14)', coralGlow:'rgba(255,112,67,0.28)',
-  teal:'#2DD4BF', tealDim:'rgba(45,212,191,0.12)',
-  success:'#39E07A',
-};
+const CATEGORY_ORDER = [
+  'Cleanser',
+  'Toner / Essence',
+  'Serum / Treatment',
+  'Moisturiser',
+  'Barrier Repair',
+  'Sunscreen',
+  'Exfoliation',
+  'Retinoid / Night Renewal',
+  'Mask / Weekly Care',
+  'Spot Care',
+  'Eye Care',
+  'Lip Care',
+  'Mist / Hydration Boost',
+  'Body Care',
+  'Tools / Accessories',
+];
 
-// ── COMPREHENSIVE REAL PRODUCT DATABASE ─────────────────────────────────────
-const PRODUCT_DATABASE = {
-  oily: {
-    cleanser: [
-      {
-        id: 'c1', name: 'CeraVe Foaming Facial Cleanser',
-        brand: 'CeraVe', price: '₹899', highlights: 'Removes excess oil without disrupting skin barrier. Contains niacinamide & ceramides.',
-        suitable_for: 'Oily/Combination', concern: 'Oil Control', rating: 4.7,
-        url: 'https://www.amazon.in/CeraVe-Foaming-Facial-Cleanser/dp/B00TTD9BRC',
-        source: 'Amazon', phase_note: 'Use twice daily; extra effective during luteal phase when oil surges.'
-      },
-      {
-        id: 'c2', name: 'La Roche-Posay Effaclar Purifying Foaming Gel',
-        brand: 'La Roche-Posay', price: '₹1,299', highlights: 'Thermal spring water + zinc to control sebum. Dermatologist tested.',
-        suitable_for: 'Oily/Acne-prone', concern: 'Acne & Oil', rating: 4.6,
-        url: 'https://www.amazon.in/La-Roche-Posay-Effaclar-Purifying-Cleansing/dp/B004MC8DFG',
-        source: 'Amazon', phase_note: 'Pre-menstrual cleansing hero — keeps pores clear as progesterone rises.'
-      },
-    ],
-    moisturizer: [
-      {
-        id: 'm1', name: 'Neutrogena Hydro Boost Water Gel',
-        brand: 'Neutrogena', price: '₹1,099', highlights: 'Oil-free hyaluronic acid gel. Lightweight hydration for oily skin types.',
-        suitable_for: 'Oily/Combination', concern: 'Lightweight Hydration', rating: 4.5,
-        url: 'https://www.amazon.in/Neutrogena-Hydro-Boost-Water-Gel/dp/B00NR1YQ6C',
-        source: 'Amazon', phase_note: 'Ideal during follicular phase when skin craves light hydration.'
-      },
-      {
-        id: 'm2', name: 'Plum Green Tea Mattifying Moisturizer',
-        brand: 'Plum', price: '₹549', highlights: 'Green tea antioxidants + glycolic acid. India-made, vegan, mattifying finish.',
-        suitable_for: 'Oily/Acne-prone', concern: 'Mattifying + Antioxidant', rating: 4.4,
-        url: 'https://www.amazon.in/Plum-Green-Tea-Mattifying-Moisturizer/dp/B08HGMGZBL',
-        source: 'Amazon', phase_note: 'Excellent for all cycle phases; green tea fights hormonal inflammation.'
-      },
-    ],
-    serum: [
-      {
-        id: 's1', name: 'The Ordinary Niacinamide 10% + Zinc 1%',
-        brand: 'The Ordinary', price: '₹590', highlights: 'Reduces sebum production, minimizes pores, fades blemishes. Cult favourite.',
-        suitable_for: 'Oily/Combination/Acne-prone', concern: 'Pores & Sebum', rating: 4.8,
-        url: 'https://www.amazon.in/Ordinary-Niacinamide-10-Zinc-30ml/dp/B06WLN9C43',
-        source: 'Amazon', phase_note: 'Apply during luteal phase — niacinamide directly counters hormonal oil surge.'
-      },
-      {
-        id: 's2', name: 'Paula\'s Choice BHA 2% Liquid Exfoliant',
-        brand: "Paula's Choice", price: '₹2,900', highlights: 'Salicylic acid unclogs pores, smooths texture. Award-winning formula.',
-        suitable_for: 'Oily/Acne-prone', concern: 'Exfoliation & Pores', rating: 4.9,
-        url: 'https://www.amazon.in/Paulas-Choice-SKIN-PERFECTING-Exfoliant/dp/B00949CTQQ',
-        source: 'Amazon', phase_note: 'Use 2x/week during luteal phase to pre-empt hormonal breakouts.'
-      },
-    ],
-    sunscreen: [
-      {
-        id: 'sp1', name: 'Minimalist Sunscreen SPF 50 PA++++',
-        brand: 'Minimalist', price: '₹399', highlights: 'Ultra-light, no white cast, non-comedogenic. India\'s best matte SPF.',
-        suitable_for: 'Oily/Combination', concern: 'Sun Protection', rating: 4.6,
-        url: 'https://www.amazon.in/Minimalist-Sunscreen-SPF-50/dp/B094G4V1LM',
-        source: 'Amazon', phase_note: 'Daily must-have; UV protection prevents post-inflammatory hyperpigmentation from acne.'
-      },
-    ],
-  },
-  dry: {
-    cleanser: [
-      {
-        id: 'c3', name: 'CeraVe Hydrating Cleanser',
-        brand: 'CeraVe', price: '₹849', highlights: 'Cream cleanser with ceramides & hyaluronic acid. Cleans without stripping.',
-        suitable_for: 'Dry/Sensitive', concern: 'Gentle Hydrating Cleanse', rating: 4.8,
-        url: 'https://www.amazon.in/CeraVe-Hydrating-Cleanser-Cream-250ml/dp/B01MSSDEPK',
-        source: 'Amazon', phase_note: 'Critical during menstrual & follicular phases when skin is most fragile and dry.'
-      },
-      {
-        id: 'c4', name: 'Dermalogica Ultracalming Cleanser',
-        brand: 'Dermalogica', price: '₹2,200', highlights: 'Creamy, fragrance-free gel. Calms irritation + redness instantly.',
-        suitable_for: 'Dry/Sensitive', concern: 'Calming Cleanse', rating: 4.7,
-        url: 'https://www.amazon.in/Dermalogica-UltraCalming-Cleanser-250ml/dp/B0009PFYGG',
-        source: 'Amazon', phase_note: 'Luteal phase saviou — calms the reactive, sensitised skin before periods.'
-      },
-    ],
-    moisturizer: [
-      {
-        id: 'm3', name: 'La Roche-Posay Cicaplast Baume B5',
-        brand: 'La Roche-Posay', price: '₹1,399', highlights: 'Multi-repairing balm with panthenol. Restores compromised skin barrier.',
-        suitable_for: 'Dry/Very Dry/Sensitive', concern: 'Barrier Repair', rating: 4.9,
-        url: 'https://www.amazon.in/La-Roche-Posay-Cicaplast-Baume/dp/B00IYNS8XS',
-        source: 'Amazon', phase_note: 'Essential during menstrual phase — estrogen drop leaves skin parched and thin.'
-      },
-      {
-        id: 'm4', name: 'Clinique Moisture Surge 100H Auto-Replenishing Hydrator',
-        brand: 'Clinique', price: '₹3,500', highlights: '100-hour continuous hydration. Cica + activated aloe water technology.',
-        suitable_for: 'Dry/Normal-Dry', concern: 'Deep Continuous Hydration', rating: 4.6,
-        url: 'https://www.amazon.in/Clinique-Moisture-Surge-Auto-Replenishing/dp/B07JGCFHBZ',
-        source: 'Amazon', phase_note: 'Use every night; most effective during follicular phase for hydration reservoir building.'
-      },
-    ],
-    serum: [
-      {
-        id: 's3', name: 'The Ordinary Hyaluronic Acid 2% + B5',
-        brand: 'The Ordinary', price: '₹690', highlights: 'Multi-weight hyaluronic acid draws moisture deep into skin layers.',
-        suitable_for: 'Dry/All Skin Types', concern: 'Deep Hydration', rating: 4.7,
-        url: 'https://www.amazon.in/Ordinary-Hyaluronic-Acid-2-B5/dp/B06WGPNM51',
-        source: 'Amazon', phase_note: 'Apply on damp skin throughout cycle; extra layers during menstrual + luteal phases.'
-      },
-      {
-        id: 's4', name: 'Kiehl\'s Midnight Recovery Concentrate',
-        brand: "Kiehl's", price: '₹4,500', highlights: 'Lavender & squalane facial oil. Overnight skin repair and restoration.',
-        suitable_for: 'Dry/Sensitive', concern: 'Overnight Repair', rating: 4.8,
-        url: 'https://www.amazon.in/Kiehls-Midnight-Recovery-Concentrate-30ml/dp/B006HRU8L8',
-        source: 'Amazon', phase_note: 'Luteal phase overnight ritual — restores barrier while you sleep.'
-      },
-    ],
-    sunscreen: [
-      {
-        id: 'sp2', name: 'Bioderma Photoderm Moisturising SPF 50+',
-        brand: 'Bioderma', price: '₹1,299', highlights: 'Hydrating sunscreen with patented Cell-Ox Shield. Moisturises + protects.',
-        suitable_for: 'Dry/Sensitive', concern: 'Hydrating Sun Protection', rating: 4.5,
-        url: 'https://www.amazon.in/Bioderma-Photoderm-Maximum-Protection-Moisturising/dp/B00A4D72MQ',
-        source: 'Amazon', phase_note: 'Morning essential — dry skin + UV = accelerated ageing. Non-negotiable daily.'
-      },
-    ],
-  },
-  sensitive: {
-    cleanser: [
-      {
-        id: 'c5', name: 'Avène Extremely Gentle Cleanser Lotion',
-        brand: 'Avène', price: '₹1,799', highlights: 'No rinse, no fragrance. Avène thermal spring water soothes reactive skin.',
-        suitable_for: 'Sensitive/Very Sensitive', concern: 'Ultra-Gentle Cleanse', rating: 4.8,
-        url: 'https://www.amazon.in/Avene-Extremely-Gentle-Cleanser-Lotion/dp/B000FBM3UK',
-        source: 'Amazon', phase_note: 'Menstrual phase go-to when skin is at peak sensitivity and reactivity.'
-      },
-      {
-        id: 'c6', name: 'Cetaphil Gentle Skin Cleanser',
-        brand: 'Cetaphil', price: '₹449', highlights: 'Dermatologist no. 1 recommended. Hypoallergenic, pH-balanced, fragrance-free.',
-        suitable_for: 'Sensitive/All Skin Types', concern: 'Gentle Daily Cleanse', rating: 4.9,
-        url: 'https://www.amazon.in/Cetaphil-Gentle-Skin-Cleanser-500ml/dp/B001ET76EO',
-        source: 'Amazon', phase_note: 'Use throughout cycle, increase frequency during luteal phase hormonal spikes.'
-      },
-    ],
-    moisturizer: [
-      {
-        id: 'm5', name: 'Vanicream Moisturizing Skin Cream',
-        brand: 'Vanicream', price: '₹1,500', highlights: 'Free of dyes, fragrance, lanolin, parabens. Recommended for eczema & rosacea.',
-        suitable_for: 'Sensitive/Eczema/Rosacea', concern: 'Hypoallergenic Moisture', rating: 4.8,
-        url: 'https://www.amazon.in/Vanicream-Moisturizing-Cream-16oz/dp/B000NWGCZ2',
-        source: 'Amazon', phase_note: 'Rosacea flares intensify during luteal/menstrual phase — this calms instantly.'
-      },
-      {
-        id: 'm6', name: 'First Aid Beauty Ultra Repair Cream',
-        brand: 'First Aid Beauty', price: '₹2,100', highlights: 'Colloidal oatmeal + shea butter. Intense relief for sensitive, dry, irritated skin.',
-        suitable_for: 'Sensitive/Dry/Eczema', concern: 'Instant Soothing Relief', rating: 4.7,
-        url: 'https://www.amazon.in/First-Aid-Beauty-Ultra-Repair/dp/B001UE57P8',
-        source: 'Amazon', phase_note: 'Apply generously during premenstrual flare-ups for barrier protection.'
-      },
-    ],
-    serum: [
-      {
-        id: 's5', name: 'Dr. Jart+ Cicapair Tiger Grass Serum',
-        brand: 'Dr. Jart+', price: '₹3,200', highlights: 'Centella asiatica repairs, soothes redness, rebuilds barrier. K-beauty icon.',
-        suitable_for: 'Sensitive/Redness-prone', concern: 'Redness & Repair', rating: 4.7,
-        url: 'https://www.amazon.in/Dr-Jart-Cicapair-Tiger-Grass/dp/B07PTVVG3H',
-        source: 'Amazon', phase_note: 'Hormonal redness peaks in luteal phase — tiger grass is nature\'s anti-inflammatory.'
-      },
-      {
-        id: 's6', name: 'Naturium Tranexamic Acid Topical Acid 5%',
-        brand: 'Naturium', price: '₹1,800', highlights: 'Fades hyperpigmentation without irritation. Gentle enough for sensitive skin.',
-        suitable_for: 'Sensitive/PIH-prone', concern: 'Even Skin Tone', rating: 4.5,
-        url: 'https://www.amazon.in/Naturium-Tranexamic-Topical-Acid/dp/B098VNWSRR',
-        source: 'Amazon', phase_note: 'Post-menstrual spot treatment to fade any period-related breakout marks.'
-      },
-    ],
-    sunscreen: [
-      {
-        id: 'sp3', name: 'EltaMD UV Clear Broad-Spectrum SPF 46',
-        brand: 'EltaMD', price: '₹3,500', highlights: 'Niacinamide + zinc oxide mineral formula. #1 dermatologist-recommended SPF.',
-        suitable_for: 'Sensitive/Acne-prone/Rosacea', concern: 'Mineral Sun Protection', rating: 4.9,
-        url: 'https://www.amazon.in/EltaMD-Clear-Broad-Spectrum-SPF-46/dp/B002MSN3QQ',
-        source: 'Amazon', phase_note: 'Fragrance-free mineral filter ideal for reactive skin any phase of cycle.'
-      },
-    ],
-  },
-  normal: {
-    cleanser: [
-      {
-        id: 'c7', name: 'Tatcha The Rice Wash Soft Cream Cleanser',
-        brand: 'Tatcha', price: '₹4,200', highlights: 'Japanese rice bran + hyaluronic acid. Creamy cleanser for balanced skin.',
-        suitable_for: 'Normal/Combination', concern: 'Balanced Cleansing', rating: 4.6,
-        url: 'https://www.amazon.in/Tatcha-Rice-Wash-Cream-Cleanser/dp/B08CCJB37S',
-        source: 'Amazon', phase_note: 'Ovulation phase treat — enhances the natural glow your skin already has.'
-      },
-      {
-        id: 'c8', name: 'Simple Kind to Skin Moisturising Facial Wash',
-        brand: 'Simple', price: '₹299', highlights: 'Pro-vitamin B5 + vitamin E. No artificial perfume, colour or harsh chemicals.',
-        suitable_for: 'Normal/Sensitive', concern: 'Daily Gentle Cleanse', rating: 4.5,
-        url: 'https://www.amazon.in/Simple-Kind-Skin-Moisturising-Facial/dp/B01GGKW9P6',
-        source: 'Amazon', phase_note: 'Use consistently across all cycle phases to maintain skin balance.'
-      },
-    ],
-    moisturizer: [
-      {
-        id: 'm7', name: 'Belif The True Cream Moisturizing Bomb',
-        brand: 'Belif', price: '₹3,800', highlights: 'Lady\'s mantle herb + aqua bomb technology. 26-hour hydration claim.',
-        suitable_for: 'Normal/Combination', concern: 'Long-Lasting Hydration', rating: 4.7,
-        url: 'https://www.amazon.in/Belif-True-Cream-Moisturizing-Bomb/dp/B00DGN7UPK',
-        source: 'Amazon', phase_note: 'Perfect follicular & ovulation phase moisturizer when skin is at its most balanced.'
-      },
-    ],
-    serum: [
-      {
-        id: 's7', name: 'SkinCeuticals C E Ferulic',
-        brand: 'SkinCeuticals', price: '₹12,500', highlights: 'Gold standard vitamin C serum. 15% pure L-ascorbic acid, vitamin E + ferulic acid.',
-        suitable_for: 'Normal/Combination/Mature', concern: 'Brightening & Anti-Aging', rating: 4.9,
-        url: 'https://www.amazon.in/SkinCeuticals-Ferulic-Brightening-Antioxidant-Serum/dp/B000D5XN6C',
-        source: 'Amazon', phase_note: 'Follicular & ovulation phases: antioxidants supercharge your skin\'s natural radiance window.'
-      },
-      {
-        id: 's8', name: 'The Inkey List Retinol Serum',
-        brand: 'The Inkey List', price: '₹1,299', highlights: '1% retinol + 0.5% granactive retinoid. Progressive formula for beginners.',
-        suitable_for: 'Normal/Aging-concerned', concern: 'Anti-Aging & Cell Renewal', rating: 4.5,
-        url: 'https://www.amazon.in/INKEY-List-Retinol-Serum-30ml/dp/B07MGBZXP4',
-        source: 'Amazon', phase_note: 'Use 2-3x/week during follicular phase only — avoid during menstrual phase sensitisation.'
-      },
-    ],
-    sunscreen: [
-      {
-        id: 'sp4', name: 'Isntree Hyaluronic Acid Watery Sun Gel SPF50+',
-        brand: 'Isntree', price: '₹1,499', highlights: 'Hyaluronic acid + green tea. Hydrating, weightless K-beauty SPF for normal skin.',
-        suitable_for: 'Normal/Combination', concern: 'Hydrating Sun Protection', rating: 4.6,
-        url: 'https://www.amazon.in/Isntree-Hyaluronic-Watery-Sun-Gel/dp/B07DSMRHGD',
-        source: 'Amazon', phase_note: 'Light enough for everyday use across all cycle phases without clogging pores.'
-      },
-    ],
-  },
-  combination: {
-    cleanser: [
-      {
-        id: 'c9', name: 'Kiehl\'s Calendula Deep Cleansing Foaming Face Wash',
-        brand: "Kiehl's", price: '₹2,500', highlights: 'Calendula petals + allantoin. Balances oily T-zone while soothing dry areas.',
-        suitable_for: 'Combination/Normal', concern: 'Zone-Balancing Cleanse', rating: 4.6,
-        url: 'https://www.amazon.in/Kiehls-Calendula-Deep-Cleansing-Foaming/dp/B00CPWJQF2',
-        source: 'Amazon', phase_note: 'Combination skin is most challenged during luteal phase — this balances both zones.'
-      },
-    ],
-    moisturizer: [
-      {
-        id: 'm8', name: 'Origins Checks and Balances Frothy Face Wash',
-        brand: 'Origins', price: '₹2,200', highlights: 'White Chinese clay + aloe. Normalises skin without over-drying.',
-        suitable_for: 'Combination/Normal', concern: 'Zone Balancing', rating: 4.4,
-        url: 'https://www.amazon.in/Origins-Checks-Balances-Frothy-Wash/dp/B000FFGFEM',
-        source: 'Amazon', phase_note: 'Multi-zone care is essential; adjust application pressure between T-zone and dry patches.'
-      },
-    ],
-    serum: [
-      {
-        id: 's9', name: 'COSRX Advanced Snail 96 Mucin Power Essence',
-        brand: 'COSRX', price: '₹1,800', highlights: '96% snail secretion filtrate. Repairs, hydrates and balances all skin areas.',
-        suitable_for: 'Combination/All Types', concern: 'Repair & Balancing', rating: 4.8,
-        url: 'https://www.amazon.in/COSRX-Advanced-Snail-Mucin-Power/dp/B00PBX3L7K',
-        source: 'Amazon', phase_note: 'Snail mucin is a cycle-safe all-rounder that adapts to combination skin\'s shifting needs.'
-      },
-    ],
-    sunscreen: [
-      {
-        id: 'sp5', name: 'Shiseido Urban Environment UV Protection Cream SPF 50',
-        brand: 'Shiseido', price: '₹2,800', highlights: 'WetForce + HeatForce technology. Japanese precision for urban skin protection.',
-        suitable_for: 'Combination/Normal', concern: 'Premium Sun Protection', rating: 4.7,
-        url: 'https://www.amazon.in/Shiseido-Urban-Environment-Protection-Sunscreen/dp/B01KLBLHQS',
-        source: 'Amazon', phase_note: 'Full-cycle daily protection; formula works beautifully over makeup for T-zone shine control.'
-      },
-    ],
-  },
-};
-
-// Phase-specific supplement products
-const PHASE_SUPPLEMENTS = {
-  menstruation: [
+const PRODUCT_LIBRARY = {
+  Cleanser: [
     {
-      id: 'sup1', name: 'Garden of Life Vitamin Code Raw Iron',
-      brand: 'Garden of Life', price: '₹2,199', highlights: 'Whole food iron supplement. Replenishes iron lost during menstruation for radiant skin.',
-      suitable_for: 'All skin types', concern: 'Iron Replenishment', rating: 4.6,
-      url: 'https://www.amazon.in/Garden-Life-Vitamin-Code-Capsules/dp/B005FQFHTY', source: 'Amazon',
-      phase_note: 'Iron deficiency during periods causes pallor and dullness — supplement for glow.'
+      id: 'cleanser-cerave-foaming',
+      name: 'CeraVe Foaming Facial Cleanser',
+      bestFor: ['Oily', 'Combination', 'Normal'],
+      phases: ['Follicular', 'Ovulatory', 'Luteal', 'General'],
+      why: 'Ideal for oily or combination skin because it helps remove excess oil, dirt, sunscreen, and daily buildup without making the skin feel harshly stripped.',
+      tags: ['oil-control', 'daily-use', 'barrier-friendly'],
+      amazon: 'https://www.amazon.in/s?k=CeraVe+Foaming+Facial+Cleanser',
+      flipkart: 'https://www.flipkart.com/search?q=CeraVe%20Foaming%20Facial%20Cleanser',
     },
     {
-      id: 'sup2', name: 'The Moms Co Natural Vitamin C Face Serum',
-      brand: 'The Moms Co', price: '₹699', highlights: 'Stable vitamin C + niacinamide. Safe for menstrual phase sensitivity.',
-      suitable_for: 'Sensitive/All', concern: 'Gentle Brightening', rating: 4.3,
-      url: 'https://www.amazon.in/Moms-Natural-Vitamin-Serum/dp/B08H99LGDH', source: 'Amazon',
-      phase_note: 'Gentle vitamin C during menstrual phase — full strength serums may irritate.'
+      id: 'cleanser-toleriane',
+      name: 'La Roche-Posay Toleriane Purifying Cleanser',
+      bestFor: ['Combination', 'Sensitive', 'Oily'],
+      phases: ['General', 'Follicular', 'Luteal'],
+      why: 'A strong balancing cleanser for users who need purification without the tight feeling often caused by over-cleansing.',
+      tags: ['balanced-cleanse', 'sensitive-safe'],
+      amazon: 'https://www.amazon.in/s?k=La+Roche+Posay+Toleriane+Purifying+Cleanser',
+      flipkart: 'https://www.flipkart.com/search?q=La%20Roche%20Posay%20Toleriane%20Purifying%20Cleanser',
+    },
+    {
+      id: 'cleanser-cetaphil-gentle',
+      name: 'Cetaphil Gentle Skin Cleanser',
+      bestFor: ['Dry', 'Sensitive', 'Normal'],
+      phases: ['Menstrual', 'General'],
+      why: 'Better suited for reactive or dry skin phases when the barrier needs a softer cleansing approach.',
+      tags: ['gentle', 'dry-skin', 'barrier-support'],
+      amazon: 'https://www.amazon.in/s?k=Cetaphil+Gentle+Skin+Cleanser',
+      flipkart: 'https://www.flipkart.com/search?q=Cetaphil%20Gentle%20Skin%20Cleanser',
+    },
+    {
+      id: 'cleanser-simple-refresh',
+      name: 'Simple Refreshing Facial Wash',
+      bestFor: ['Sensitive', 'Combination', 'Normal'],
+      phases: ['General', 'Menstrual'],
+      why: 'A practical low-irritation option for users who want a mild cleanser at an accessible price point.',
+      tags: ['simple-routine', 'budget', 'mild'],
+      amazon: 'https://www.amazon.in/s?k=Simple+Refreshing+Facial+Wash',
+      flipkart: 'https://www.flipkart.com/search?q=Simple%20Refreshing%20Facial%20Wash',
     },
   ],
-  follicular: [
+
+  'Toner / Essence': [
     {
-      id: 'sup3', name: 'Pilgrim 10% Vitamin C Face Serum',
-      brand: 'Pilgrim', price: '₹549', highlights: '10% ascorbic acid + alpha arbutin. Korean-formulated, India-priced brightening serum.',
-      suitable_for: 'Normal/Oily/Combination', concern: 'Brightening & Even Tone', rating: 4.5,
-      url: 'https://www.amazon.in/Pilgrim-Vitamin-Serum-Alpha-Arbutin/dp/B08HSF19KZ', source: 'Amazon',
-      phase_note: 'Follicular phase: estrogen rising means skin can handle stronger actives. Vitamin C shines here.'
+      id: 'toner-snail-essence',
+      name: 'Snail Mucin Essence',
+      bestFor: ['Dry', 'Sensitive', 'Combination', 'Normal'],
+      phases: ['Menstrual', 'Follicular', 'General'],
+      why: 'Useful for lightweight hydration, bounce, and skin recovery when you want hydration without a heavy cream layer.',
+      tags: ['essence', 'hydration', 'repair'],
+      amazon: 'https://www.amazon.in/s?k=Snail+Mucin+Essence',
+      flipkart: 'https://www.flipkart.com/search?q=Snail%20Mucin%20Essence',
+    },
+    {
+      id: 'toner-centella',
+      name: 'Centella Calming Toner',
+      bestFor: ['Sensitive', 'Combination', 'Dry'],
+      phases: ['Menstrual', 'Luteal', 'General'],
+      why: 'Especially useful when the skin feels red, reactive, or more sensitive during hormonal or stressed phases.',
+      tags: ['centella', 'calming', 'redness'],
+      amazon: 'https://www.amazon.in/s?k=Centella+Calming+Toner',
+      flipkart: 'https://www.flipkart.com/search?q=Centella%20Calming%20Toner',
+    },
+    {
+      id: 'toner-hydrating',
+      name: 'Hydrating Hyaluronic Toner',
+      bestFor: ['Dry', 'Normal', 'Combination'],
+      phases: ['General', 'Menstrual', 'Follicular'],
+      why: 'Helps increase water content and supports the skin before serum and moisturiser application.',
+      tags: ['hyaluronic', 'prep-step', 'hydration'],
+      amazon: 'https://www.amazon.in/s?k=Hydrating+Hyaluronic+Toner',
+      flipkart: 'https://www.flipkart.com/search?q=Hydrating%20Hyaluronic%20Toner',
     },
   ],
-  ovulation: [
+
+  'Serum / Treatment': [
     {
-      id: 'sup4', name: 'Tatcha The Silk Canvas Primer',
-      brand: 'Tatcha', price: '₹3,800', highlights: 'Mineral silk primer. Enhances natural ovulation glow with light-reflecting particles.',
-      suitable_for: 'All skin types', concern: 'Glow Enhancement', rating: 4.7,
-      url: 'https://www.amazon.in/Tatcha-Silk-Canvas-Primer/dp/B07BFVJ4L3', source: 'Amazon',
-      phase_note: 'Ovulation = peak skin radiance. This primer amplifies your natural luminosity.'
+      id: 'serum-niacinamide-ordinary',
+      name: 'The Ordinary Niacinamide 10% + Zinc 1%',
+      bestFor: ['Oily', 'Combination', 'Normal'],
+      phases: ['Follicular', 'Ovulatory', 'Luteal', 'General'],
+      why: 'Strong for pores, shine, overall oil balance, and building a stable everyday treatment routine.',
+      tags: ['niacinamide', 'pores', 'oil-balance'],
+      amazon: 'https://www.amazon.in/s?k=The+Ordinary+Niacinamide+10%25+Zinc+1%25',
+      flipkart: 'https://www.flipkart.com/search?q=The%20Ordinary%20Niacinamide%2010%25%20Zinc%201%25',
+    },
+    {
+      id: 'serum-bha-paulas-choice',
+      name: 'Paula’s Choice 2% BHA Liquid Exfoliant',
+      bestFor: ['Oily', 'Combination'],
+      phases: ['Luteal', 'Ovulatory', 'General'],
+      why: 'Highly useful for blackheads, pore congestion, recurring clogged pores, and pre-period breakout-prone skin.',
+      tags: ['bha', 'blackheads', 'congestion'],
+      amazon: 'https://www.amazon.in/s?k=Paula%27s+Choice+2%25+BHA+Liquid+Exfoliant',
+      flipkart: 'https://www.flipkart.com/search?q=Paula%27s%20Choice%202%25%20BHA%20Liquid%20Exfoliant',
+    },
+    {
+      id: 'serum-azelaic',
+      name: 'Azelaic Acid Serum',
+      bestFor: ['Sensitive', 'Combination', 'Normal'],
+      phases: ['Menstrual', 'Luteal', 'General'],
+      why: 'Helpful for redness, acne marks, uneven tone, and users who need a treatment step with lower irritation risk.',
+      tags: ['azelaic-acid', 'marks', 'redness'],
+      amazon: 'https://www.amazon.in/s?k=Azelaic+Acid+Serum',
+      flipkart: 'https://www.flipkart.com/search?q=Azelaic%20Acid%20Serum',
+    },
+    {
+      id: 'serum-vitamin-c',
+      name: 'Vitamin C Brightening Serum',
+      bestFor: ['Normal', 'Dry', 'Combination'],
+      phases: ['Follicular', 'Ovulatory', 'General'],
+      why: 'Best used during more stable skin phases when your focus is brightness, radiance, and post-acne mark support.',
+      tags: ['vitamin-c', 'brightening', 'glow'],
+      amazon: 'https://www.amazon.in/s?k=Vitamin+C+Face+Serum',
+      flipkart: 'https://www.flipkart.com/search?q=Vitamin%20C%20Face%20Serum',
+    },
+    {
+      id: 'serum-peptides',
+      name: 'Peptide Repair Serum',
+      bestFor: ['Dry', 'Sensitive', 'Normal'],
+      phases: ['Menstrual', 'Follicular', 'General'],
+      why: 'Supports skin recovery, barrier resilience, and smoother-looking texture without the intensity of harsher actives.',
+      tags: ['peptides', 'repair', 'support'],
+      amazon: 'https://www.amazon.in/s?k=Peptide+Repair+Serum',
+      flipkart: 'https://www.flipkart.com/search?q=Peptide%20Repair%20Serum',
     },
   ],
-  luteal: [
+
+  Moisturiser: [
     {
-      id: 'sup5', name: 'Mario Badescu Drying Lotion',
-      brand: 'Mario Badescu', price: '₹1,599', highlights: 'Salicylic acid + calamine spot treatment. Overnight drying of hormonal pimples.',
-      suitable_for: 'Oily/Acne-prone', concern: 'Hormonal Spot Treatment', rating: 4.6,
-      url: 'https://www.amazon.in/Mario-Badescu-Drying-Lotion-Sulfur/dp/B00B3MI1KE', source: 'Amazon',
-      phase_note: 'Keep by your bedside for luteal phase breakouts. Apply directly to spots overnight.'
+      id: 'moisturiser-cerave-pm',
+      name: 'CeraVe PM Facial Moisturising Lotion',
+      bestFor: ['Combination', 'Oily', 'Sensitive', 'Normal'],
+      phases: ['General', 'Menstrual', 'Luteal'],
+      why: 'A reliable everyday moisturiser when the skin is oily but still needs barrier support and calm after actives.',
+      tags: ['night', 'ceramides', 'repair'],
+      amazon: 'https://www.amazon.in/s?k=CeraVe+PM+Facial+Moisturizing+Lotion',
+      flipkart: 'https://www.flipkart.com/search?q=CeraVe%20PM%20Facial%20Moisturizing%20Lotion',
     },
     {
-      id: 'sup6', name: 'Murad Clarifying Cream Cleanser',
-      brand: 'Murad', price: '₹2,900', highlights: 'Salicylic acid + green tea. Pre-empts premenstrual breakouts with daily use.',
-      suitable_for: 'Oily/Acne-prone/Combination', concern: 'Pre-Menstrual Acne Prevention', rating: 4.5,
-      url: 'https://www.amazon.in/Murad-Clarifying-Cleanser/dp/B000BQYGNC', source: 'Amazon',
-      phase_note: 'Switch to this 5-7 days before period for proactive premenstrual breakout control.'
+      id: 'moisturiser-hydro-boost',
+      name: 'Neutrogena Hydro Boost Water Gel',
+      bestFor: ['Oily', 'Combination', 'Normal'],
+      phases: ['Follicular', 'Ovulatory', 'General'],
+      why: 'A lightweight hydration option for users who want freshness without a rich cream feel.',
+      tags: ['gel', 'hydration', 'lightweight'],
+      amazon: 'https://www.amazon.in/s?k=Neutrogena+Hydro+Boost+Water+Gel',
+      flipkart: 'https://www.flipkart.com/search?q=Neutrogena%20Hydro%20Boost%20Water%20Gel',
+    },
+    {
+      id: 'moisturiser-barrier-cream',
+      name: 'Barrier Repair Cream with Ceramides',
+      bestFor: ['Dry', 'Sensitive'],
+      phases: ['Menstrual', 'General'],
+      why: 'Better during dry or reactive phases when the skin needs a denser moisturising barrier layer.',
+      tags: ['barrier', 'dryness', 'repair'],
+      amazon: 'https://www.amazon.in/s?k=Ceramide+Barrier+Repair+Cream',
+      flipkart: 'https://www.flipkart.com/search?q=Ceramide%20Barrier%20Repair%20Cream',
+    },
+    {
+      id: 'moisturiser-gel-cream',
+      name: 'Oil-Free Gel Cream Moisturiser',
+      bestFor: ['Oily', 'Combination'],
+      phases: ['Luteal', 'General'],
+      why: 'Useful for oily periods when a cream feels too heavy but the skin still needs hydration support.',
+      tags: ['oil-free', 'gel-cream', 'humidity-friendly'],
+      amazon: 'https://www.amazon.in/s?k=Oil+Free+Gel+Cream+Moisturiser',
+      flipkart: 'https://www.flipkart.com/search?q=Oil%20Free%20Gel%20Cream%20Moisturiser',
+    },
+  ],
+
+  'Barrier Repair': [
+    {
+      id: 'barrier-ceramide-cream',
+      name: 'Ceramide Barrier Repair Cream',
+      bestFor: ['Dry', 'Sensitive', 'Combination'],
+      phases: ['Menstrual', 'General', 'Luteal'],
+      why: 'Highly useful when the barrier feels damaged from over-cleansing, strong actives, irritation, or dryness.',
+      tags: ['ceramides', 'barrier', 'rescue'],
+      amazon: 'https://www.amazon.in/s?k=Ceramide+Barrier+Repair+Cream',
+      flipkart: 'https://www.flipkart.com/search?q=Ceramide%20Barrier%20Repair%20Cream',
+    },
+    {
+      id: 'barrier-balm',
+      name: 'Cica Recovery Balm',
+      bestFor: ['Sensitive', 'Dry'],
+      phases: ['Menstrual', 'General'],
+      why: 'Good for overnight recovery on red, uncomfortable, flaky, or irritated patches.',
+      tags: ['cica', 'overnight', 'recovery'],
+      amazon: 'https://www.amazon.in/s?k=Cica+Recovery+Balm',
+      flipkart: 'https://www.flipkart.com/search?q=Cica%20Recovery%20Balm',
+    },
+    {
+      id: 'barrier-squalane',
+      name: 'Squalane Barrier Serum',
+      bestFor: ['Dry', 'Sensitive', 'Normal'],
+      phases: ['Menstrual', 'General'],
+      why: 'Supports softness and reduces tightness when the skin barrier feels thin or dehydrated.',
+      tags: ['squalane', 'softness', 'comfort'],
+      amazon: 'https://www.amazon.in/s?k=Squalane+Barrier+Serum',
+      flipkart: 'https://www.flipkart.com/search?q=Squalane%20Barrier%20Serum',
+    },
+  ],
+
+  Sunscreen: [
+    {
+      id: 'spf-anthelios',
+      name: 'La Roche-Posay Anthelios Sunscreen',
+      bestFor: ['All'],
+      phases: ['General', 'Follicular', 'Ovulatory', 'Luteal', 'Menstrual'],
+      why: 'A daily essential for protecting skin from UV damage, helping reduce darkening of acne marks, and preserving treatment progress.',
+      tags: ['spf', 'daily-essential', 'protection'],
+      amazon: 'https://www.amazon.in/s?k=La+Roche+Posay+Anthelios+Sunscreen',
+      flipkart: 'https://www.flipkart.com/search?q=La%20Roche%20Posay%20Anthelios%20Sunscreen',
+    },
+    {
+      id: 'spf-beauty-joseon',
+      name: 'Beauty of Joseon Relief Sun',
+      bestFor: ['All'],
+      phases: ['General', 'Follicular', 'Ovulatory'],
+      why: 'A popular lightweight sunscreen option for daily wear, especially when users dislike heavy SPF textures.',
+      tags: ['lightweight', 'everyday-spf'],
+      amazon: 'https://www.amazon.in/s?k=Beauty+of+Joseon+Relief+Sun',
+      flipkart: 'https://www.flipkart.com/search?q=Beauty%20of%20Joseon%20Relief%20Sun',
+    },
+    {
+      id: 'spf-gel',
+      name: 'Oil-Free Gel Sunscreen',
+      bestFor: ['Oily', 'Combination'],
+      phases: ['Luteal', 'General'],
+      why: 'Useful for very humid weather or late-cycle oiliness when richer sunscreens are often skipped.',
+      tags: ['gel-spf', 'oil-free', 'humidity'],
+      amazon: 'https://www.amazon.in/s?k=Oil+Free+Gel+Sunscreen',
+      flipkart: 'https://www.flipkart.com/search?q=Oil%20Free%20Gel%20Sunscreen',
+    },
+  ],
+
+  Exfoliation: [
+    {
+      id: 'exfoliation-aha',
+      name: 'Gentle AHA Exfoliating Serum',
+      bestFor: ['Dry', 'Normal', 'Combination'],
+      phases: ['Follicular', 'General'],
+      why: 'Good for users targeting dullness, uneven texture, and mild roughness during stable skin periods.',
+      tags: ['aha', 'texture', 'glow'],
+      amazon: 'https://www.amazon.in/s?k=Gentle+AHA+Exfoliating+Serum',
+      flipkart: 'https://www.flipkart.com/search?q=Gentle%20AHA%20Exfoliating%20Serum',
+    },
+    {
+      id: 'exfoliation-pha',
+      name: 'PHA Exfoliating Toner',
+      bestFor: ['Sensitive', 'Dry', 'Combination'],
+      phases: ['Follicular', 'General'],
+      why: 'A lower-irritation exfoliation route when you want smoother skin without aggressive acid stacking.',
+      tags: ['pha', 'gentle', 'renewal'],
+      amazon: 'https://www.amazon.in/s?k=PHA+Exfoliating+Toner',
+      flipkart: 'https://www.flipkart.com/search?q=PHA%20Exfoliating%20Toner',
+    },
+    {
+      id: 'exfoliation-enzyme',
+      name: 'Enzyme Exfoliating Powder',
+      bestFor: ['Sensitive', 'Normal', 'Combination'],
+      phases: ['General', 'Follicular'],
+      why: 'Useful for users who want occasional smoothness and glow with lower friction than scrubs.',
+      tags: ['enzyme', 'gentle-polish', 'powder'],
+      amazon: 'https://www.amazon.in/s?k=Enzyme+Exfoliating+Powder',
+      flipkart: 'https://www.flipkart.com/search?q=Enzyme%20Exfoliating%20Powder',
+    },
+  ],
+
+  'Retinoid / Night Renewal': [
+    {
+      id: 'retinoid-beginner',
+      name: 'Beginner Retinol Serum',
+      bestFor: ['Oily', 'Combination', 'Normal'],
+      phases: ['Follicular', 'General'],
+      why: 'Strong for long-term improvement in acne marks, texture, and skin renewal when introduced slowly.',
+      tags: ['retinol', 'night-care', 'renewal'],
+      amazon: 'https://www.amazon.in/s?k=Beginner+Retinol+Serum',
+      flipkart: 'https://www.flipkart.com/search?q=Beginner%20Retinol%20Serum',
+    },
+    {
+      id: 'retinal-night-cream',
+      name: 'Retinal Night Cream',
+      bestFor: ['Normal', 'Combination'],
+      phases: ['Follicular', 'General'],
+      why: 'Useful when the skin barrier is stable and the user wants a stronger overnight renewal product.',
+      tags: ['retinal', 'night-cream', 'anti-marks'],
+      amazon: 'https://www.amazon.in/s?k=Retinal+Night+Cream',
+      flipkart: 'https://www.flipkart.com/search?q=Retinal%20Night%20Cream',
+    },
+    {
+      id: 'retinoid-sensitive',
+      name: 'Sensitive Skin Retinol Lotion',
+      bestFor: ['Sensitive', 'Dry', 'Normal'],
+      phases: ['General', 'Follicular'],
+      why: 'A softer entry point for users who want retinoid support but cannot tolerate strong formulas.',
+      tags: ['gentle-retinol', 'slow-introduction'],
+      amazon: 'https://www.amazon.in/s?k=Sensitive+Skin+Retinol+Lotion',
+      flipkart: 'https://www.flipkart.com/search?q=Sensitive%20Skin%20Retinol%20Lotion',
+    },
+  ],
+
+  'Mask / Weekly Care': [
+    {
+      id: 'mask-clay',
+      name: 'Clay Mask for Oil & Congestion',
+      bestFor: ['Oily', 'Combination'],
+      phases: ['Luteal', 'General'],
+      why: 'Best as an occasional support step when the skin feels especially congested or oily in the later cycle phase.',
+      tags: ['clay', 'weekly-care', 'oil-control'],
+      amazon: 'https://www.amazon.in/s?k=Clay+Face+Mask+for+Oily+Skin',
+      flipkart: 'https://www.flipkart.com/search?q=Clay%20Face%20Mask%20for%20Oily%20Skin',
+    },
+    {
+      id: 'mask-soothing',
+      name: 'Soothing Hydration Mask',
+      bestFor: ['Dry', 'Sensitive', 'Normal'],
+      phases: ['Menstrual', 'General'],
+      why: 'Better when the skin looks tired, tight, or inflamed and needs comfort instead of more exfoliation.',
+      tags: ['soothing', 'hydration', 'calming'],
+      amazon: 'https://www.amazon.in/s?k=Soothing+Hydrating+Face+Mask',
+      flipkart: 'https://www.flipkart.com/search?q=Soothing%20Hydrating%20Face%20Mask',
+    },
+    {
+      id: 'mask-sleeping',
+      name: 'Overnight Sleeping Mask',
+      bestFor: ['Dry', 'Normal', 'Combination'],
+      phases: ['Menstrual', 'Follicular', 'General'],
+      why: 'Useful as a weekly hydration and softness booster when skin looks dull or dehydrated.',
+      tags: ['sleeping-mask', 'overnight', 'glow'],
+      amazon: 'https://www.amazon.in/s?k=Overnight+Sleeping+Mask',
+      flipkart: 'https://www.flipkart.com/search?q=Overnight%20Sleeping%20Mask',
+    },
+  ],
+
+  'Spot Care': [
+    {
+      id: 'spot-cosrx-patch',
+      name: 'COSRX Acne Pimple Master Patch',
+      bestFor: ['Oily', 'Combination', 'Sensitive'],
+      phases: ['Luteal', 'General'],
+      why: 'A practical blemish option because it helps reduce touching and supports cleaner healing.',
+      tags: ['patch', 'blemish', 'spot-care'],
+      amazon: 'https://www.amazon.in/s?k=COSRX+Acne+Pimple+Master+Patch',
+      flipkart: 'https://www.flipkart.com/search?q=COSRX%20Acne%20Pimple%20Master%20Patch',
+    },
+    {
+      id: 'spot-mario',
+      name: 'Mario Badescu Drying Lotion',
+      bestFor: ['Oily', 'Combination'],
+      phases: ['Luteal', 'General'],
+      why: 'Useful as targeted overnight care for visible surface-level blemishes.',
+      tags: ['targeted', 'overnight', 'drying-lotion'],
+      amazon: 'https://www.amazon.in/s?k=Mario+Badescu+Drying+Lotion',
+      flipkart: 'https://www.flipkart.com/search?q=Mario%20Badescu%20Drying%20Lotion',
+    },
+    {
+      id: 'spot-sulfur',
+      name: 'Sulfur Spot Treatment',
+      bestFor: ['Oily', 'Combination', 'Acne-prone'],
+      phases: ['Luteal', 'General'],
+      why: 'Works well for inflamed pimples and congestion-prone phases when breakouts feel more frequent.',
+      tags: ['sulfur', 'blemish', 'anti-inflammatory'],
+      amazon: 'https://www.amazon.in/s?k=Sulfur+Spot+Treatment',
+      flipkart: 'https://www.flipkart.com/search?q=Sulfur%20Spot%20Treatment',
+    },
+  ],
+
+  'Eye Care': [
+    {
+      id: 'eye-caffeine',
+      name: 'Caffeine Eye Serum',
+      bestFor: ['All'],
+      phases: ['General', 'Luteal', 'Menstrual'],
+      why: 'Useful when puffiness, under-eye heaviness, or tiredness becomes more visible during low-energy or stressed phases.',
+      tags: ['caffeine', 'puffiness', 'eye-care'],
+      amazon: 'https://www.amazon.in/s?k=Caffeine+Eye+Serum',
+      flipkart: 'https://www.flipkart.com/search?q=Caffeine%20Eye%20Serum',
+    },
+    {
+      id: 'eye-gel',
+      name: 'Hydrating Eye Gel',
+      bestFor: ['All'],
+      phases: ['General', 'Menstrual'],
+      why: 'Supports under-eye hydration and comfort when the face looks tired or mildly dehydrated.',
+      tags: ['eye-gel', 'hydration'],
+      amazon: 'https://www.amazon.in/s?k=Hydrating+Eye+Gel',
+      flipkart: 'https://www.flipkart.com/search?q=Hydrating%20Eye%20Gel',
+    },
+  ],
+
+  'Lip Care': [
+    {
+      id: 'lip-balm-ceramide',
+      name: 'Ceramide Lip Balm',
+      bestFor: ['All'],
+      phases: ['General', 'Menstrual', 'Luteal'],
+      why: 'A simple but important addition when dehydration, dryness, or peeling affects the lips during hormonal or seasonal changes.',
+      tags: ['lip-balm', 'repair', 'dryness'],
+      amazon: 'https://www.amazon.in/s?k=Ceramide+Lip+Balm',
+      flipkart: 'https://www.flipkart.com/search?q=Ceramide%20Lip%20Balm',
+    },
+    {
+      id: 'lip-mask',
+      name: 'Overnight Lip Mask',
+      bestFor: ['All'],
+      phases: ['General', 'Menstrual'],
+      why: 'Useful for deeper lip softness and overnight recovery when standard balm is not enough.',
+      tags: ['overnight', 'lip-mask'],
+      amazon: 'https://www.amazon.in/s?k=Overnight+Lip+Mask',
+      flipkart: 'https://www.flipkart.com/search?q=Overnight%20Lip%20Mask',
+    },
+  ],
+
+  'Mist / Hydration Boost': [
+    {
+      id: 'mist-thermal-water',
+      name: 'Thermal Water Mist',
+      bestFor: ['Sensitive', 'Normal', 'Dry'],
+      phases: ['Menstrual', 'General'],
+      why: 'Useful for quick calming and comfort when skin feels heated, dry, or reactive during the day.',
+      tags: ['mist', 'calming', 'refresh'],
+      amazon: 'https://www.amazon.in/s?k=Thermal+Water+Mist',
+      flipkart: 'https://www.flipkart.com/search?q=Thermal%20Water%20Mist',
+    },
+    {
+      id: 'mist-hydrating',
+      name: 'Hydrating Facial Mist',
+      bestFor: ['Dry', 'Normal', 'Combination'],
+      phases: ['General', 'Follicular'],
+      why: 'A helpful midday hydration layer when the skin tends to lose freshness throughout the day.',
+      tags: ['facial-mist', 'midday-hydration'],
+      amazon: 'https://www.amazon.in/s?k=Hydrating+Facial+Mist',
+      flipkart: 'https://www.flipkart.com/search?q=Hydrating%20Facial%20Mist',
+    },
+  ],
+
+  'Body Care': [
+    {
+      id: 'body-lotion-urea',
+      name: 'Urea Body Lotion',
+      bestFor: ['Dry', 'Sensitive', 'Normal'],
+      phases: ['General', 'Menstrual'],
+      why: 'Useful when body skin also feels rough, dry, or dull and needs stronger moisture support.',
+      tags: ['body-care', 'urea', 'dryness'],
+      amazon: 'https://www.amazon.in/s?k=Urea+Body+Lotion',
+      flipkart: 'https://www.flipkart.com/search?q=Urea%20Body%20Lotion',
+    },
+    {
+      id: 'body-wash-gentle',
+      name: 'Gentle Body Wash',
+      bestFor: ['Sensitive', 'Dry', 'Normal'],
+      phases: ['General'],
+      why: 'A good body-care add-on for users who experience dryness or irritation beyond the face.',
+      tags: ['body-wash', 'gentle'],
+      amazon: 'https://www.amazon.in/s?k=Gentle+Body+Wash',
+      flipkart: 'https://www.flipkart.com/search?q=Gentle%20Body%20Wash',
+    },
+  ],
+
+  'Tools / Accessories': [
+    {
+      id: 'tools-headband',
+      name: 'Soft Skincare Headband',
+      bestFor: ['All'],
+      phases: ['General'],
+      why: 'Improves daily routine convenience and helps keep hair away during cleansing and treatment steps.',
+      tags: ['accessory', 'routine-tool'],
+      amazon: 'https://www.amazon.in/s?k=Skincare+Headband',
+      flipkart: 'https://www.flipkart.com/search?q=Skincare%20Headband',
+    },
+    {
+      id: 'tools-silicone-brush',
+      name: 'Silicone Mask Applicator',
+      bestFor: ['All'],
+      phases: ['General'],
+      why: 'Useful for cleaner weekly mask application and less product waste.',
+      tags: ['mask-tool', 'clean-application'],
+      amazon: 'https://www.amazon.in/s?k=Silicone+Mask+Applicator',
+      flipkart: 'https://www.flipkart.com/search?q=Silicone%20Mask%20Applicator',
+    },
+    {
+      id: 'tools-ice-roller',
+      name: 'Ice Roller / Cooling Face Tool',
+      bestFor: ['All'],
+      phases: ['Menstrual', 'Luteal', 'General'],
+      why: 'Can help temporarily reduce puffiness and give a cooling effect when the face feels heavy or inflamed.',
+      tags: ['cooling', 'puffiness', 'tool'],
+      amazon: 'https://www.amazon.in/s?k=Ice+Roller+for+Face',
+      flipkart: 'https://www.flipkart.com/search?q=Ice%20Roller%20for%20Face',
     },
   ],
 };
 
-const CAT_PALETTE = {
-  cleanser:    { color: T.teal,    dim: T.tealDim,    emoji: '🫧', title: 'Cleansers'    },
-  moisturizer: { color: T.skyBlue, dim: T.skyBlueDim, emoji: '💧', title: 'Moisturizers' },
-  serum:       { color: T.rose,    dim: T.roseDim,    emoji: '✨', title: 'Serums'        },
-  sunscreen:   { color: T.amber,   dim: T.amberDim,   emoji: '☀️', title: 'Sunscreens'   },
-  supplements: { color: T.violet,  dim: T.violetDim,  emoji: '💊', title: 'Phase Picks'  },
+const openUrl = async (url) => {
+  if (!url) return;
+  try {
+    if (Platform.OS === 'web') {
+      window.open(url, '_blank', 'noopener,noreferrer');
+      return;
+    }
+
+    const supported = await Linking.canOpenURL(url);
+    if (supported) {
+      await Linking.openURL(url);
+    } else {
+      Alert.alert('Link unavailable', 'Unable to open this product link.');
+    }
+  } catch (error) {
+    Alert.alert('Link error', 'Could not open the product link right now.');
+  }
 };
 
-const PHASE_COLORS = {
-  menstruation: T.rose,
-  follicular: T.teal,
-  ovulation: T.amber,
-  luteal: T.violet,
-};
+const ProductCard = ({ product, accent }) => (
+  <View style={[styles.productCard, { borderColor: `${accent}33` }]}>
+    <View style={styles.productTopRow}>
+      <View style={[styles.productAccentBar, { backgroundColor: accent }]} />
+      <View style={styles.productTagsWrap}>
+        {product.tags.slice(0, 3).map((tag) => (
+          <View key={tag} style={styles.tagChip}>
+            <Text style={styles.tagText}>{tag}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+
+    <Text style={styles.productName}>{product.name}</Text>
+    <Text style={styles.productWhy}>{product.why}</Text>
+
+    <View style={styles.linksRow}>
+      <TouchableOpacity
+        activeOpacity={0.9}
+        style={styles.linkButtonAmazon}
+        onPress={() => openUrl(product.amazon)}
+      >
+        <Text style={styles.linkButtonText}>Amazon</Text>
+        <Feather name="external-link" size={14} color="#0f1419" />
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        activeOpacity={0.9}
+        style={styles.linkButtonFlipkart}
+        onPress={() => openUrl(product.flipkart)}
+      >
+        <Text style={styles.linkButtonTextLight}>Flipkart</Text>
+        <Feather name="external-link" size={14} color="#dff5ff" />
+      </TouchableOpacity>
+    </View>
+  </View>
+);
 
 export default function ProductRecommendationsScreen({ navigation }) {
+  const [profile, setProfile] = useState(null);
+  const [cycleData, setCycleData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [skinType, setSkinType] = useState('normal');
-  const [cyclePhase, setCyclePhase] = useState(null);
-  const [cycleDay, setCycleDay] = useState(null);
-  const [activeTab, setActiveTab] = useState('cleanser');
-  const [showPhaseProducts, setShowPhaseProducts] = useState(false);
 
-  useEffect(() => { loadUserData(); }, []);
-
-  const loadUserData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const profileRes = await api.get('/api/profile');
-      if (profileRes.data.skin_type) setSkinType(profileRes.data.skin_type.toLowerCase());
 
-      try {
-        const cycleRes = await api.get('/api/menstrual-settings');
-        if (cycleRes.data.prediction?.today_phase) {
-          setCyclePhase(cycleRes.data.prediction.today_phase);
-          setCycleDay(cycleRes.data.prediction.today_cycle_day);
-        }
-      } catch {}
-    } catch (e) {
-      console.log('Error loading:', e);
+      const [profileRes, cycleRes] = await Promise.allSettled([
+        api.get('/api/profile'),
+        api.get('/api/menstrual-settings'),
+      ]);
+
+      if (profileRes.status === 'fulfilled') {
+        setProfile(profileRes.value?.data || null);
+      }
+
+      if (cycleRes.status === 'fulfilled') {
+        setCycleData(cycleRes.value?.data || null);
+      } else {
+        setCycleData(null);
+      }
+    } catch (error) {
+      Alert.alert('Loading failed', 'Unable to load recommendation data right now.');
     } finally {
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  const skinType = useMemo(() => {
+    return profile?.skin_type || 'Combination';
+  }, [profile]);
+
+  const gender = useMemo(() => {
+    return String(profile?.gender || '').trim().toLowerCase();
+  }, [profile]);
+
+  const cyclePhase = useMemo(() => {
+    if (!cycleData?.predicted_phase) return 'General';
+    return cycleData.predicted_phase;
+  }, [cycleData]);
+
+  const pmsSeverity = useMemo(() => {
+    return cycleData?.pms_severity || 'Moderate';
+  }, [cycleData]);
+
+  const recommendationsByCategory = useMemo(() => {
+    const result = {};
+
+    CATEGORY_ORDER.forEach((category) => {
+      const source = PRODUCT_LIBRARY[category] || [];
+
+      const filtered = source.filter((product) => {
+        const bestFor = product.bestFor || [];
+        const phases = product.phases || [];
+
+        const skinMatch =
+          bestFor.includes('All') ||
+          bestFor.includes(skinType) ||
+          (skinType === 'Sensitive' && bestFor.includes('Sensitive'));
+
+        const phaseMatch =
+          gender === 'male' ||
+          phases.includes('General') ||
+          phases.includes(cyclePhase);
+
+        return skinMatch && phaseMatch;
+      });
+
+      result[category] = filtered.slice(0, 5);
+    });
+
+    return result;
+  }, [skinType, cyclePhase, gender]);
+
+  const insightText = useMemo(() => {
+    if (gender === 'male') {
+      return `These product recommendations are tailored primarily around your saved skin type, with emphasis on daily barrier support, balanced cleansing, hydration, oil control, and long-term routine consistency. Since menstrual-phase adaptation is not required for this profile, the logic focuses only on visible skin needs and routine suitability.`;
+    }
+
+    return `These products are selected using both your saved skin type and your menstrual details. The app is currently adapting suggestions for the ${cyclePhase} phase, which changes product emphasis depending on whether your skin is more likely to be sensitive, balanced, brighter, oilier, more congested, or more breakout-prone during this point in your cycle. PMS severity is currently set to ${pmsSeverity}, so late-cycle congestion and hormonal support are weighted more strongly when relevant.`;
+  }, [gender, cyclePhase, pmsSeverity]);
+
+  const categoryAccent = {
+    Cleanser: '#8fd3ff',
+    'Toner / Essence': '#8fe0ff',
+    'Serum / Treatment': '#c9b6ff',
+    Moisturiser: '#9ee6c0',
+    'Barrier Repair': '#7ce0cf',
+    Sunscreen: '#ffd48e',
+    Exfoliation: '#f6b6d2',
+    'Retinoid / Night Renewal': '#d2b8ff',
+    'Mask / Weekly Care': '#f2a9c2',
+    'Spot Care': '#ff9c8a',
+    'Eye Care': '#b4c9ff',
+    'Lip Care': '#ffb3c0',
+    'Mist / Hydration Boost': '#9adff5',
+    'Body Care': '#b8e3a2',
+    'Tools / Accessories': '#d6d3d1',
   };
-
-  const openLink = (url) => { if (url) Linking.openURL(url).catch(() => {}); };
-
-  const currentProducts = PRODUCT_DATABASE[skinType] || PRODUCT_DATABASE.normal;
-  const tabProducts = showPhaseProducts
-    ? (PHASE_SUPPLEMENTS[cyclePhase] || [])
-    : (currentProducts[activeTab] || []);
-
-  const phaseColor = cyclePhase ? (PHASE_COLORS[cyclePhase] || T.accent) : T.accent;
 
   if (loading) {
     return (
-      <SafeAreaView style={s.safe}>
-        <View style={s.topBar}>
-          <TouchableOpacity onPress={() => navigation.goBack()}><Text style={s.backTxt}>← Back</Text></TouchableOpacity>
-          <Text style={s.topTitle}>Products</Text>
-          <View style={{ width: 40 }} />
-        </View>
-        <View style={s.center}>
-          <ActivityIndicator size="large" color={T.coral} />
-          <Text style={s.loadTxt}>Curating your personalized picks…</Text>
-        </View>
-      </SafeAreaView>
+      <View style={styles.loadingScreen}>
+        <ActivityIndicator size="large" color="#8fd3ff" />
+        <Text style={styles.loadingText}>Loading personalised recommendations...</Text>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={s.safe}>
-      <StatusBar barStyle="light-content" backgroundColor={T.bg1} />
-
-      {/* TOP BAR */}
-      <View style={s.topBar}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.backBtn}>
-          <Text style={s.backTxt}>← Back</Text>
+    <View style={styles.screen}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <TouchableOpacity
+          style={styles.backButton}
+          activeOpacity={0.85}
+          onPress={() => navigation.goBack()}
+        >
+          <Ionicons name="arrow-back" size={18} color="#dbeaf3" />
+          <Text style={styles.backText}>Back</Text>
         </TouchableOpacity>
-        <Text style={s.topTitle}>My Products</Text>
-        <TouchableOpacity onPress={loadUserData} style={s.refreshBtn}>
-          <Text style={[s.refreshIco, { color: T.coral }]}>↺</Text>
-        </TouchableOpacity>
-      </View>
 
-      {/* SKIN TYPE + PHASE BANNER */}
-      <View style={s.bannerRow}>
-        <View style={[s.bannerCard, { borderColor: T.coral + '44', backgroundColor: T.coralDim }]}>
-          <Text style={s.bannerIco}>🔬</Text>
-          <View>
-            <Text style={s.bannerLabel}>Your Skin Type</Text>
-            <Text style={[s.bannerValue, { color: T.coral }]}>{skinType.toUpperCase()}</Text>
+        <View style={styles.heroCard}>
+          <View style={styles.heroBadge}>
+            <MaterialCommunityIcons name="shopping-search-outline" size={14} color="#8fd3ff" />
+            <Text style={styles.heroBadgeText}>PERSONALISED PRODUCTS</Text>
           </View>
-        </View>
-        {cyclePhase && (
-          <View style={[s.bannerCard, { borderColor: phaseColor + '44', backgroundColor: phaseColor + '18', marginLeft: 10 }]}>
-            <Text style={s.bannerIco}>🌸</Text>
-            <View>
-              <Text style={s.bannerLabel}>Cycle Phase · Day {cycleDay}</Text>
-              <Text style={[s.bannerValue, { color: phaseColor }]}>{cyclePhase.toUpperCase()}</Text>
+
+          <Text style={styles.heroTitle}>Recommendations for your skin</Text>
+          <Text style={styles.heroSubtitle}>{insightText}</Text>
+
+          <View style={styles.profileInfoRow}>
+            <View style={styles.infoPill}>
+              <Text style={styles.infoPillText}>Skin Type: {skinType}</Text>
             </View>
+            {gender !== 'male' && (
+              <View style={styles.infoPill}>
+                <Text style={styles.infoPillText}>Cycle Phase: {cyclePhase}</Text>
+              </View>
+            )}
           </View>
-        )}
-      </View>
-
-      {/* PHASE PHASE EXPLANATION BANNER */}
-      {cyclePhase && (
-        <View style={[s.phaseExplainer, { borderLeftColor: phaseColor }]}>
-          <Text style={[s.phaseExplainerTitle, { color: phaseColor }]}>
-            {cyclePhase === 'menstruation' && '🩸 Menstrual Phase — Skin is sensitive, barrier is weak. Go ultra-gentle.'}
-            {cyclePhase === 'follicular' && '🌱 Follicular Phase — Estrogen rising! Great time for active ingredients.'}
-            {cyclePhase === 'ovulation' && '✨ Ovulation Phase — Peak radiance! Skin is at its clearest and smoothest.'}
-            {cyclePhase === 'luteal' && '🌙 Luteal Phase — Progesterone rises: expect oilier skin & potential breakouts.'}
-          </Text>
-          <Text style={s.phaseExplainerSub}>Products below are curated for your current cycle phase + skin type combo.</Text>
         </View>
-      )}
 
-      {/* CATEGORY TABS */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}
-        contentContainerStyle={s.tabsRow} style={s.tabsScroll}>
-        {Object.entries(CAT_PALETTE).map(([key, pal]) => {
-          if (key === 'supplements' && !cyclePhase) return null;
-          const active = showPhaseProducts ? key === 'supplements' : (activeTab === key && !showPhaseProducts);
+        {CATEGORY_ORDER.map((category) => {
+          const products = recommendationsByCategory[category];
+          const accent = categoryAccent[category] || '#8fd3ff';
+
+          if (!products || !products.length) return null;
+
           return (
-            <TouchableOpacity
-              key={key}
-              style={[s.tab, active && { borderColor: pal.color, backgroundColor: pal.dim }]}
-              onPress={() => {
-                if (key === 'supplements') {
-                  setShowPhaseProducts(true);
-                } else {
-                  setShowPhaseProducts(false);
-                  setActiveTab(key);
-                }
-              }}
-            >
-              <Text style={{ fontSize: 16 }}>{pal.emoji}</Text>
-              <Text style={[s.tabTxt, active && { color: pal.color }]}>{pal.title}</Text>
-            </TouchableOpacity>
+            <View key={category} style={styles.categorySection}>
+              <View style={styles.categoryHeaderRow}>
+                <Text style={styles.categoryTitle}>{category}</Text>
+                <View style={[styles.categoryAccentDot, { backgroundColor: accent }]} />
+              </View>
+
+              <Text style={styles.categorySubtitle}>
+                Carefully selected products for this part of your routine.
+              </Text>
+
+              <View style={styles.productsGrid}>
+                {products.map((product) => (
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    accent={accent}
+                  />
+                ))}
+              </View>
+            </View>
           );
         })}
-      </ScrollView>
 
-      {/* PRODUCTS LIST */}
-      <ScrollView contentContainerStyle={s.listPad} showsVerticalScrollIndicator={false}>
-
-        {/* SECTION HEADER */}
-        <View style={s.sectionHeader}>
-          <Text style={s.sectionTitle}>
-            {showPhaseProducts
-              ? `Phase-Specific Picks for ${cyclePhase?.charAt(0).toUpperCase() + cyclePhase?.slice(1)} Phase`
-              : `${CAT_PALETTE[activeTab]?.title} for ${skinType.charAt(0).toUpperCase() + skinType.slice(1)} Skin`}
-          </Text>
-          <Text style={s.sectionSub}>
-            {tabProducts.length} product{tabProducts.length !== 1 ? 's' : ''} • AI-personalized for you
+        <View style={styles.footerNote}>
+          <Ionicons name="information-circle-outline" size={18} color="#9eb8c8" />
+          <Text style={styles.footerNoteText}>
+            Marketplace listings can change over time. These Amazon and Flipkart buttons open relevant product or search pages so you can compare pricing, sellers, and availability before purchase.
           </Text>
         </View>
 
-        {tabProducts.length === 0 ? (
-          <View style={s.emptyCard}>
-            <Text style={{ fontSize: 40, marginBottom: 12 }}>🧴</Text>
-            <Text style={s.emptyTitle}>No products found</Text>
-            <Text style={s.emptySub}>Complete your skin analysis for personalized picks</Text>
-          </View>
-        ) : (
-          tabProducts.map((p, i) => <ProductCard key={p.id || i} p={p} idx={i} onPress={openLink} />)
-        )}
-
-        <View style={{ height: 40 }} />
+        <View style={{ height: Platform.OS === 'web' ? 20 : 28 }} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
-function ProductCard({ p, idx, onPress }) {
-  const stars = '⭐'.repeat(Math.round(p.rating || 4));
-  const [expanded, setExpanded] = useState(false);
+const cardWidth = width >= 1100 ? '48.8%' : '100%';
 
-  return (
-    <TouchableOpacity activeOpacity={0.92} onPress={() => setExpanded(!expanded)}
-      style={s.card}>
-      {/* CARD TOP */}
-      <View style={s.cardTop}>
-        <View style={s.cardNumBadge}>
-          <Text style={s.cardNum}>{String(idx + 1).padStart(2, '0')}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <View style={s.cardTitleRow}>
-            <Text style={s.cardName} numberOfLines={expanded ? 0 : 2}>{p.name}</Text>
-            <View style={[s.priceBadge]}>
-              <Text style={s.priceText}>{p.price}</Text>
-            </View>
-          </View>
-          <Text style={s.cardBrand}>{p.brand}</Text>
-        </View>
-      </View>
-
-      {/* BADGES */}
-      <View style={s.badgeRow}>
-        <View style={s.badge}>
-          <Text style={s.badgeTxt}>✓ {p.suitable_for}</Text>
-        </View>
-        <View style={[s.badge, { backgroundColor: T.amberDim, borderColor: T.amber + '44' }]}>
-          <Text style={[s.badgeTxt, { color: T.amber }]}>{p.concern}</Text>
-        </View>
-        <View style={s.badge}>
-          <Text style={s.badgeTxt}>{stars} {p.rating}</Text>
-        </View>
-      </View>
-
-      {/* HIGHLIGHTS */}
-      <Text style={s.highlights}>{p.highlights}</Text>
-
-      {/* PHASE NOTE - ALWAYS VISIBLE */}
-      {p.phase_note && (
-        <View style={s.phaseNote}>
-          <Text style={s.phaseNoteIco}>🌸</Text>
-          <Text style={s.phaseNoteTxt}>{p.phase_note}</Text>
-        </View>
-      )}
-
-      {/* ACTIONS */}
-      <View style={s.cardActions}>
-        {p.url ? (
-          <TouchableOpacity
-            style={s.buyBtn}
-            onPress={() => onPress(p.url)}
-            activeOpacity={0.8}
-          >
-            <Text style={s.buyBtnTxt}>View on {p.source} →</Text>
-          </TouchableOpacity>
-        ) : (
-          <View style={s.unavailableBtn}>
-            <Text style={s.unavailableTxt}>Not available online</Text>
-          </View>
-        )}
-        <TouchableOpacity style={s.expandBtn} onPress={() => setExpanded(!expanded)}>
-          <Text style={s.expandTxt}>{expanded ? '▲ Less' : '▼ More'}</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
-const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: T.bg0 },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 12 },
-  loadTxt: { fontSize: 13, color: T.text3 },
-
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 13, backgroundColor: T.bg1, borderBottomWidth: 1, borderBottomColor: T.border },
-  backBtn: { padding: 4 },
-  backTxt: { fontSize: 14, color: T.text3, fontWeight: '600' },
-  topTitle: { fontSize: 16, fontWeight: '800', color: T.text },
-  refreshBtn: { padding: 6 },
-  refreshIco: { fontSize: 22, fontWeight: '700' },
-
-  bannerRow: { flexDirection: 'row', paddingHorizontal: 16, paddingTop: 14, paddingBottom: 10 },
-  bannerCard: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, borderWidth: 1, padding: 12 },
-  bannerIco: { fontSize: 22 },
-  bannerLabel: { fontSize: 9, color: T.text3, fontWeight: '700', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 2 },
-  bannerValue: { fontSize: 13, fontWeight: '900' },
-
-  phaseExplainer: { marginHorizontal: 16, marginBottom: 10, borderLeftWidth: 3, backgroundColor: T.bg2, borderRadius: 10, padding: 12 },
-  phaseExplainerTitle: { fontSize: 12, fontWeight: '700', marginBottom: 4, lineHeight: 17 },
-  phaseExplainerSub: { fontSize: 11, color: T.text3, lineHeight: 16 },
-
-  tabsScroll: { maxHeight: 56 },
-  tabsRow: { paddingHorizontal: 16, paddingVertical: 8, gap: 8 },
-  tab: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: T.border, backgroundColor: T.bg3 },
-  tabTxt: { fontSize: 12, fontWeight: '600', color: T.text3 },
-
-  listPad: { paddingHorizontal: 16, paddingTop: 12 },
-
-  sectionHeader: { marginBottom: 14 },
-  sectionTitle: { fontSize: 15, fontWeight: '800', color: T.text, marginBottom: 3 },
-  sectionSub: { fontSize: 11, color: T.text3 },
-
-  emptyCard: { backgroundColor: T.bg2, borderRadius: 16, borderWidth: 1, borderColor: T.border, padding: 28, alignItems: 'center', marginTop: 20 },
-  emptyTitle: { fontSize: 16, fontWeight: '700', color: T.text, marginBottom: 6 },
-  emptySub: { fontSize: 12, color: T.text3, textAlign: 'center' },
-
-  card: { backgroundColor: T.bg2, borderRadius: 16, borderWidth: 1, borderColor: T.border, borderLeftWidth: 3, borderLeftColor: T.coral, padding: 16, marginBottom: 12 },
-  cardTop: { flexDirection: 'row', gap: 12, marginBottom: 10 },
-  cardNumBadge: { width: 38, height: 38, borderRadius: 10, backgroundColor: T.coralDim, borderWidth: 1, borderColor: T.coral + '50', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  cardNum: { fontSize: 11, fontWeight: '900', color: T.coral },
-  cardTitleRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 3 },
-  cardName: { fontSize: 14, fontWeight: '700', color: T.text, flex: 1, lineHeight: 19 },
-  cardBrand: { fontSize: 10, color: T.text3, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
-
-  priceBadge: { backgroundColor: T.amberDim, borderRadius: 8, borderWidth: 1, borderColor: T.amber + '44', paddingHorizontal: 8, paddingVertical: 3, flexShrink: 0 },
-  priceText: { fontSize: 11, fontWeight: '800', color: T.amber },
-
-  badgeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 },
-  badge: { paddingHorizontal: 8, paddingVertical: 3, backgroundColor: T.bg4, borderRadius: 6, borderWidth: 1, borderColor: T.border },
-  badgeTxt: { fontSize: 10, color: T.text3, fontWeight: '600' },
-
-  highlights: { fontSize: 12, color: T.text2, lineHeight: 17, marginBottom: 10 },
-
-  phaseNote: { flexDirection: 'row', gap: 8, backgroundColor: T.bg3, borderRadius: 8, padding: 10, marginBottom: 12, borderWidth: 1, borderColor: T.border },
-  phaseNoteIco: { fontSize: 14 },
-  phaseNoteTxt: { fontSize: 11, color: T.text2, flex: 1, lineHeight: 16 },
-
-  cardActions: { flexDirection: 'row', gap: 10 },
-  buyBtn: { flex: 1, backgroundColor: T.coralDim, borderRadius: 10, borderWidth: 1.5, borderColor: T.coral + '55', paddingVertical: 10, alignItems: 'center' },
-  buyBtnTxt: { fontSize: 12, fontWeight: '700', color: T.coral },
-  unavailableBtn: { flex: 1, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: T.border, alignItems: 'center' },
-  unavailableTxt: { fontSize: 11, color: T.text4 },
-  expandBtn: { paddingHorizontal: 12, paddingVertical: 10, borderRadius: 10, borderWidth: 1, borderColor: T.border, alignItems: 'center', justifyContent: 'center' },
-  expandTxt: { fontSize: 10, color: T.text3, fontWeight: '600' },
+const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: '#0a0e13',
+  },
+  loadingScreen: {
+    flex: 1,
+    backgroundColor: '#0a0e13',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    color: '#dce7ef',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 34,
+  },
+  backButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 16,
+  },
+  backText: {
+    color: '#dbeaf3',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  heroCard: {
+    backgroundColor: '#111820',
+    borderRadius: 28,
+    borderWidth: 1,
+    borderColor: '#1f2a34',
+    padding: 18,
+    marginBottom: 20,
+  },
+  heroBadge: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#15202b',
+    borderWidth: 1,
+    borderColor: '#273442',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginBottom: 14,
+  },
+  heroBadgeText: {
+    color: '#8fd3ff',
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+  },
+  heroTitle: {
+    color: '#f4f8fb',
+    fontSize: 30,
+    fontWeight: '900',
+    marginBottom: 10,
+  },
+  heroSubtitle: {
+    color: '#a8b8c5',
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 14,
+  },
+  profileInfoRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  infoPill: {
+    backgroundColor: '#0d1319',
+    borderWidth: 1,
+    borderColor: '#202a34',
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  infoPillText: {
+    color: '#d9e7ef',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  categorySection: {
+    marginBottom: 22,
+  },
+  categoryHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 6,
+  },
+  categoryTitle: {
+    color: '#f4f8fb',
+    fontSize: 22,
+    fontWeight: '900',
+  },
+  categoryAccentDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+  },
+  categorySubtitle: {
+    color: '#91a4b5',
+    fontSize: 13,
+    marginBottom: 14,
+  },
+  productsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 14,
+  },
+  productCard: {
+    width: cardWidth,
+    backgroundColor: '#0f141a',
+    borderWidth: 1,
+    borderRadius: 22,
+    padding: 16,
+    minHeight: 252,
+  },
+  productTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    gap: 10,
+  },
+  productAccentBar: {
+    width: 6,
+    height: 32,
+    borderRadius: 999,
+  },
+  productTagsWrap: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    flex: 1,
+  },
+  tagChip: {
+    backgroundColor: '#16212a',
+    borderWidth: 1,
+    borderColor: '#23303b',
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  tagText: {
+    color: '#b9cad6',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  productName: {
+    color: '#f4f8fb',
+    fontSize: 18,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  productWhy: {
+    color: '#a9b8c5',
+    fontSize: 13,
+    lineHeight: 21,
+    marginBottom: 16,
+  },
+  linksRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 'auto',
+  },
+  linkButtonAmazon: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 14,
+    backgroundColor: '#d6e6f2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  linkButtonFlipkart: {
+    flex: 1,
+    minHeight: 46,
+    borderRadius: 14,
+    backgroundColor: '#16324d',
+    borderWidth: 1,
+    borderColor: '#24486b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+  },
+  linkButtonText: {
+    color: '#0f1419',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  linkButtonTextLight: {
+    color: '#dff5ff',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  footerNote: {
+    backgroundColor: '#111820',
+    borderWidth: 1,
+    borderColor: '#1f2a34',
+    borderRadius: 18,
+    padding: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
+  },
+  footerNoteText: {
+    flex: 1,
+    color: '#9eb8c8',
+    fontSize: 13,
+    lineHeight: 20,
+  },
 });
